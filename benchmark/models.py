@@ -23,3 +23,8 @@ class BenchmarkResult:
             f"Total: {self.total_latency_ms:.0f}ms | "
             f"Tokens: {self.total_tokens}"
         )
+
+    def _calc_tps(self, tokens: int, time_s: float) -> float:
+        if time_s <= 0:
+            return 0.0
+        return tokens / time_s
