@@ -40,7 +40,7 @@ class OpenAIProvider(BaseProvider):
                 elapsed = time.perf_counter() - t0
                 tps = _count_tokens(full_text) / elapsed if elapsed > 0 else 0
                 return Panel(
-                    f"[bold cyan]TTFT:[/bold cyan] {ttft:.0f}ms  "
+                    f"[bold cyan]TTFT:[/bold cyan] {(ttft or 0):.0f}ms  "
                     f"[bold green]Tokens:[/bold green] {_count_tokens(full_text):>6}  "
                     f"[bold yellow]TPS:[/bold yellow] {tps:.1f}\n"
                     f"[dim]{full_text}[/dim]",

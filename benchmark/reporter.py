@@ -10,6 +10,12 @@ from benchmark.models import BenchmarkResult
 
 console = Console()
 
+def _f(val, fmt):
+    """安全的数值格式化，None 或失败时返回 '-'"""
+    if val is None or (not isinstance(val, (int, float))):
+        return "-"
+    return format(val, fmt)
+
 def print_results(results: list[BenchmarkResult]):
     table = Table(title="Token Benchmark Results", show_header=True, header_style="bold magenta")
     table.add_column("Provider", style="cyan")
@@ -24,10 +30,10 @@ def print_results(results: list[BenchmarkResult]):
         status = "✅" if r.success else "❌"
         table.add_row(
             r.provider, r.model,
-            f"{r.ttft_ms:.0f}" if r.success else "-",
-            f"{r.tokens_per_second:.1f}" if r.success else "-",
-            f"{r.total_latency_ms:.0f}" if r.success else "-",
-            str(r.total_tokens) if r.success else "-",
+            _f(r.ttft_ms, ".0f") if r.success else "-",
+            _f(r.tokens_per_second, ".1f") if r.success else "-",
+            _f(r.total_latency_ms, ".0f") if r.success else "-",
+            str(r.total_tokens) if r.success and r.total_tokens is not None else "-",
             status,
         )
 
@@ -43,10 +49,10 @@ def generate_html_report(results: list[BenchmarkResult], output_path: str = "ben
             {
                 "provider": r.provider,
                 "model": r.model,
-                "ttft_ms": r.ttft_ms,
-                "tokens_per_second": r.tokens_per_second,
-                "total_latency_ms": r.total_latency_ms,
-                "total_tokens": r.total_tokens,
+                "ttft_ms": r.ttft_ms if r.ttft_ms is not None else 0,
+                "tokens_per_second": r.tokens_per_second if r.tokens_per_second is not None else 0,
+                "total_latency_ms": r.total_latency_ms if r.total_latency_ms is not None else 0,
+                "total_tokens": r.total_tokens if r.total_tokens is not None else 0,
                 "success": r.success,
             } for r in results
         ]),
