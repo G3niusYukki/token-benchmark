@@ -114,19 +114,16 @@ def run_benchmark(
         elif not cls:
             print(f"⚠️  Provider '{target}' not implemented, skipping")
             continue
+        else:
+            # 从已配置的 cfg 中取 base_url（config.yaml 预配置场景）
+            base_url = cfg.get("base_url") if cfg else None
 
         api_key = cfg.get("api_key", "")
         if not api_key:
             print(f"⚠️  No API key for '{target}', skipping")
             continue
 
-        # 从已注册的 custom provider 获取 base_url
-        if target in custom_providers:
-            _, base_url = custom_providers[target]
-
-        provider = cls(api_key=api_key, model=cfg.get("model", ""))
-        if base_url:
-            provider.extra["base_url"] = base_url
+        provider = cls(api_key=api_key, model=cfg.get("model", ""), base_url=base_url)
 
         round_results = []
         for i in range(rounds):

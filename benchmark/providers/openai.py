@@ -8,7 +8,8 @@ class OpenAIProvider(BaseProvider):
 
     def __init__(self, api_key: str, model: str, **kwargs):
         super().__init__(api_key, model, **kwargs)
-        self.client = OpenAI(api_key=api_key)
+        base_url = kwargs.get("base_url") or self.extra.get("base_url")
+        self.client = OpenAI(api_key=api_key, base_url=base_url)
 
     def run(self, prompt: str, timeout: int = 60) -> BenchmarkResult:
         try:
