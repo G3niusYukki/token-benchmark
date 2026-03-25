@@ -1,17 +1,19 @@
 providers:
   openai:
-    api_key: "${OPENAI_API_KEY}"
+    api_key: ""
     model: "gpt-4o"
+    base_url: ""
   anthropic:
-    api_key: "${ANTHROPIC_API_KEY}"
+    api_key: ""
     model: "claude-sonnet-4-5-latest"
   deepseek:
-    api_key: "${DEEPSEEK_API_KEY}"
+    api_key: ""
     model: "deepseek-chat"
+    base_url: ""
   kimi:
-    api_key: "${KIMI_API_KEY}"
-    base_url: "https://api.moonshot.cn/v1"
+    api_key: ""
     model: "moonshot-v1-8k"
+    base_url: "https://api.moonshot.cn/v1"
 
 benchmark:
   prompt: "请用100字介绍一下人工智能的发展历史。"
