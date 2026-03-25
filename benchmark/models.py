@@ -11,6 +11,7 @@ class BenchmarkResult:
     tokens_per_second: float
     success: bool
     error: Optional[str] = None
+    full_text: Optional[str] = None   # 完整响应文本 (verbose 模式)
 
     def summary(self) -> str:
         status = "✅" if self.success else "❌"
@@ -24,7 +25,12 @@ class BenchmarkResult:
             f"Tokens: {self.total_tokens}"
         )
 
-    def _calc_tps(self, tokens: int, time_s: float) -> float:
-        if time_s <= 0:
-            return 0.0
-        return tokens / time_s
+    def calc_breakdown(self) -> str:
+        """返回计算过程说明"""
+        t = self.total_latency_ms / 1000
+        return (
+            f"  计算: {self.total_tokens} tokens / {t:.2f}s = {self.tokens_per_second:.1f} tokens/s\n"
+            f"  TTFT: {self.ttft_ms:.0f}ms (首 token 延迟)\n"
+            f"  总耗时: {self.total_latency_ms:.0f}ms\n"
+            f"  响应长度: {len(self.full_text)} 字符"
+        )

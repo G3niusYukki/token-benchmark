@@ -6,7 +6,7 @@ from benchmark.reporter import print_results, generate_html_report
 def main():
     parser = argparse.ArgumentParser(description="AI Token Speed Benchmark")
     parser.add_argument("-p", "--providers", nargs="+",
-                        help="Providers to test (default: all, choices: openai anthropic deepseek kimi)")
+                        help="Providers to test (default: all)")
     parser.add_argument("-r", "--rounds", type=int, default=3,
                         help="Rounds per provider (default: 3)")
     parser.add_argument("-c", "--config", default="config.yaml",
@@ -14,6 +14,8 @@ def main():
     parser.add_argument("--html", action="store_true", help="Generate HTML report")
     parser.add_argument("-o", "--output", default="benchmark_report.html",
                         help="HTML output path")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Show live streaming output, token counts, and calculation breakdown")
     args = parser.parse_args()
 
     available = ["openai", "anthropic", "deepseek", "kimi"]
@@ -24,6 +26,7 @@ def main():
     print("=" * 60)
     print(f"  Providers : {', '.join(targets)}")
     print(f"  Rounds    : {args.rounds}")
+    print(f"  Verbose   : {'ON' if args.verbose else 'OFF'}")
     print(f"  HTML Out  : {args.output if args.html else 'disabled'}")
     print("=" * 60)
     print()
@@ -32,6 +35,7 @@ def main():
         providers=targets,
         rounds=args.rounds,
         config_path=args.config,
+        verbose=args.verbose,
     )
 
     print("\n" + "=" * 60)

@@ -45,6 +45,7 @@ def run_benchmark(
     providers: List[str] = None,
     rounds: int = 3,
     config_path: str = "config.yaml",
+    verbose: bool = False,
 ) -> List[BenchmarkResult]:
     config = load_config(config_path)
     benchmark_cfg = config.get("benchmark", {})
@@ -71,23 +72,47 @@ def run_benchmark(
             if base_url and target not in ("openai", "deepseek", "kimi"):
                 # 通用 OpenAI-compatible provider
                 from benchmark.providers.base import BaseProvider
-                def _count_tokens(text):
+                def _ct(text):
                     try:
                         import tiktoken
-                        enc = tiktoken.get_encoding("cl100k_base")
-                        return len(enc.encode(text))
+                        return len(tiktoken.get_encoding("cl100k_base").encode(text))
                     except Exception:
                         return max(1, len(text) // 4)
 
                 class CustomProvider(BaseProvider):
                     name = target
+                    def __init__(self, api_key, model, verbose=False, **kw):
+                        super().__init__(api_key, model, **kw)
+                        self.verbose = verbose
                     def run(self, prompt, timeout=60):
                         from openai import OpenAI
+                        from rich.live import Live
+                        from rich.panel import Panel
+                        from rich.console import Console
+
                         client = OpenAI(api_key=self.api_key, base_url=self.extra.get("base_url"))
                         t0 = time.perf_counter()
                         ttft = None
                         t_last = t0
                         full_text = ""
+                        live = None
+
+                        def make_status():
+                            el = time.perf_counter() - t0
+                            tps = _ct(full_text) / el if el > 0 else 0
+                            return Panel(
+                                f"[bold cyan]TTFT:[/bold cyan] {ttft:.0f}ms  "
+                                f"[bold green]Tokens:[/bold green] {_ct(full_text):>6}  "
+                                f"[bold yellow]TPS:[/bold yellow] {tps:.1f}\n"
+                                f"[dim]{full_text}[/dim]",
+                                title=f"[bold]{self.name}/{self.model}[/bold] Streaming",
+                                border_style="cyan", width=100,
+                            )
+
+                        if self.verbose:
+                            console = Console()
+                            live = Live(make_status(), refresh_per_second=10, transient=False)
+                            live.start()
                         try:
                             stream = client.chat.completions.create(
                                 model=self.model,
@@ -101,27 +126,26 @@ def run_benchmark(
                                     if ttft is None:
                                         ttft = (t_last - t0) * 1000
                                     full_text += content
-                            total_tokens = _count_tokens(full_text)
-                            streaming_time = t_last - t0
-                            return BenchmarkResult(
-                                provider=self.name, model=self.model,
-                                total_tokens=total_tokens, ttft_ms=ttft or 0,
-                                total_latency_ms=streaming_time * 1000,
-                                tokens_per_second=self._calc_tps(total_tokens, streaming_time),
-                                success=True,
-                            )
-                        except Exception as e:
-                            return BenchmarkResult(
-                                provider=self.name, model=self.model,
-                                total_tokens=0, ttft_ms=0, total_latency_ms=0,
-                                tokens_per_second=0, success=False, error=str(e)
-                            )
+                                if live and full_text:
+                                    live.update(make_status())
+                        finally:
+                            if live:
+                                live.stop()
+
+                        total = _ct(full_text)
+                        st = t_last - t0
+                        return BenchmarkResult(
+                            provider=self.name, model=self.model,
+                            total_tokens=total, ttft_ms=ttft or 0,
+                            total_latency_ms=st * 1000,
+                            tokens_per_second=total / st if st > 0 else 0,
+                            success=True, full_text=full_text,
+                        )
                 cls = CustomProvider
         elif not cls:
             print(f"⚠️  Provider '{target}' not implemented, skipping")
             continue
         else:
-            # 从已配置的 cfg 中取 base_url（config.yaml 预配置场景）
             base_url = cfg.get("base_url") if cfg else None
 
         api_key = cfg.get("api_key", "")
@@ -129,14 +153,24 @@ def run_benchmark(
             print(f"⚠️  No API key for '{target}', skipping")
             continue
 
-        provider = cls(api_key=api_key, model=cfg.get("model", ""), base_url=base_url)
-
+        provider = cls(api_key=api_key, model=cfg.get("model", ""), verbose=verbose, base_url=base_url)
         round_results = []
+
         for i in range(rounds):
-            print(f"  [{i+1}/{rounds}] {target}...", end=" ", flush=True)
+            print(f"\n  [{i+1}/{rounds}] {target}...", flush=True)
             r = provider.run(prompt, timeout=timeout)
             round_results.append(r)
-            print("done" if r.success else f"FAIL: {r.error}")
+
+            if r.success:
+                if verbose:
+                    print(f"  ✅ 完成  TTFT: {r.ttft_ms:.0f}ms | Tokens: {r.total_tokens} | "
+                          f"TPS: {r.tokens_per_second:.1f} | 耗时: {r.total_latency_ms:.0f}ms")
+                    print(f"  📝 响应预览: {r.full_text[:200]}{'...' if len(r.full_text or '') > 200 else ''}")
+                    print(f"  🔢 计算: {r.total_tokens} tokens / {r.total_latency_ms/1000:.2f}s = {r.tokens_per_second:.1f} tokens/s")
+                else:
+                    print(f"  done")
+            else:
+                print(f"  FAIL: {r.error}")
 
         valid = [r for r in round_results if r.success]
         if valid:
