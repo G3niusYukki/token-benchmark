@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Token Benchmark Report</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }
+  h1 { color: #333; }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+  th, td { border: 1px solid #ddd; padding: 10px; text-align: right; }
+  th { background: #f5f5f5; text-align: center; }
+  td:first-child, th:first-child { text-align: left; }
+  canvas { margin: 30px 0; }
+  .success { color: green; } .fail { color: red; }
+</style>
+</head>
+<body>
+<h1>Token Benchmark Report</h1>
+<p>Generated at: <span id="ts"></span></p>
+
+<h2>Summary Table</h2>
+<table>
+<tr><th>Provider</th><th>Model</th><th>TTFT (ms)</th><th>Tokens/s</th><th>Total (ms)</th><th>Tokens</th><th>Status</th></tr>
+{% for r in results %}
+<tr>
+  <td>{{ r.provider }}</td>
+  <td>{{ r.model }}</td>
+  <td>{{ "%.0f"|format(r.ttft_ms) if r.success else "-" }}</td>
+  <td>{{ "%.1f"|format(r.tokens_per_second) if r.success else "-" }}</td>
+  <td>{{ "%.0f"|format(r.total_latency_ms) if r.success else "-" }}</td>
+  <td>{{ r.total_tokens if r.success else "-" }}</td>
+  <td class="{{ "success" if r.success else "fail" }}">{{ "✅" if r.success else "❌" }}</td>
+</tr>
+{% endfor %}
+</table>
+
+<h2>Tokens/s Comparison</h2>
+<canvas id="tpsChart"></canvas>
+
+<h2>TTFT (ms) Comparison</h2>
+<canvas id="ttftChart"></canvas>
+
+<script>
+document.getElementById('ts').textContent = new Date().toLocaleString();
+const results = {{ results_json }};
+
+const labels = results.map(r => r.provider + '/' + r.model);
+const tpsData = results.map(r => r.tokens_per_second || 0);
+const ttftData = results.map(r => r.ttft_ms || 0);
+
+new Chart(document.getElementById('tpsChart'), {
+  type: 'bar',
+  data: { labels, datasets: [{ label: 'Tokens/s', data: tpsData, backgroundColor: 'rgba(54,162,235,0.7)' }] },
+  options: { responsive: true, plugins: { legend: { display: false } } }
+});
+new Chart(document.getElementById('ttftChart'), {
+  type: 'bar',
+  data: { labels, datasets: [{ label: 'TTFT (ms)', data: ttftData, backgroundColor: 'rgba(255,99,132,0.7)' }] },
+  options: { responsive: true, plugins: { legend: { display: false } } }
+});
+</script>
+</body>
+</html>

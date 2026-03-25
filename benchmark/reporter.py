@@ -1,4 +1,9 @@
+import json
+from datetime import datetime
 from typing import List
+from jinja2 import Template
+from pathlib import Path
+
 from rich.console import Console
 from rich.table import Table
 from benchmark.models import BenchmarkResult
@@ -27,3 +32,24 @@ def print_results(results: list[BenchmarkResult]):
         )
 
     console.print(table)
+
+def generate_html_report(results: list[BenchmarkResult], output_path: str = "benchmark_report.html"):
+    template_path = Path(__file__).parent.parent / "templates" / "report.html"
+    template = Template(template_path.read_text())
+
+    html = template.render(
+        results=results,
+        results_json=json.dumps([
+            {
+                "provider": r.provider,
+                "model": r.model,
+                "ttft_ms": r.ttft_ms,
+                "tokens_per_second": r.tokens_per_second,
+                "total_latency_ms": r.total_latency_ms,
+                "total_tokens": r.total_tokens,
+                "success": r.success,
+            } for r in results
+        ]),
+    )
+    Path(output_path).write_text(html)
+    print(f"📊 HTML report saved to: {output_path}")
